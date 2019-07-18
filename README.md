@@ -31,7 +31,7 @@ Reboot the server and run the following commands to download the script:
 apt -y update
 apt -y install php-cli php-curl wget
 cd /root
-wget https://download.schaal-it.com/hetzner-proxmox.tgz
+wget https://download.schaal-it.net/hetzner-proxmox.tgz
 tar xfz hetzner-proxmox.tgz
 cd proxmox
 ```
