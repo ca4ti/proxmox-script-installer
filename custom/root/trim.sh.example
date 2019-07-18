@@ -1,0 +1,5 @@
+#!/bin/bash
+PCT=/usr/sbin/pct
+for i in $($PCT list | awk '/^[0-9]/ {print $1}'); do
+	$PCT fstrim $i
+done

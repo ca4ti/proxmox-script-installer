@@ -1,0 +1,14 @@
+<?php
+
+/*
+we set the values at the end of the script.
+
+You can use any indexes from the install-array. I.e. $replace = array('email');
+
+$search = array(
+	'_EMAIL_',
+);
+$replace = array (
+	'your@email',
+)
+?>
