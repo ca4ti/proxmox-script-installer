@@ -176,4 +176,4 @@ Pull requests are welcome. For major changes, please open an issue first to disc
 Please make sure to update tests as appropriate.
 
 ## Bugtracker
-Visit our [issue tracker](https://git.schaal-it.com/florian/proxmox/issues).
+Visit our [issue tracker](https://git.schaal-it.com/hetzner/proxmox/issues).
