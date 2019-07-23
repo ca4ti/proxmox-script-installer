@@ -29,6 +29,8 @@ class hetzner_network extends installer_base {
 	protected $robot;
 	protected $manual = false;
 	protected $vlan_networks = array();
+	protected $version = '1.1';
+	protected $support_url = 'https://schaal-it.com/script-to-install-proxmox-5-x-and-6-x-on-a-dedicated-hetzner-server/';
 
 	public function __construct($install, $robot_account, $manual = false) {
 		require 'RobotRestClient.class.php';
@@ -204,8 +206,8 @@ class hetzner_network extends installer_base {
 
 		$out[] = '# /etc/network/interfaces';
 		$out[] = '';
-		$out[] = '### generated using Proxmox-Setup Tool from schaal @it UG';
-		$out[] = '### https://URL';
+		$out[] = '### generated using Proxmox-Setup Tool '.$this->version.' from schaal @it UG';
+		$out[] = '### '.$this->support_url;
 		$out[] = '###';
 		$out[] = '### Network-Type '.$network_setup['type'];
 		$out[] = '';

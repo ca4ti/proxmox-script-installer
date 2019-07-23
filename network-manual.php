@@ -26,6 +26,8 @@ require('lib/installer_base.inc.php');
 require('lib/installer_proxmox.inc.php');
 require('lib/hetzner_network.inc.php');
 
+$version = '1.1';
+
 $inst = new installer_base;
 
 $install = array();
@@ -36,7 +38,7 @@ $install['network'] = 'routed';
 
 $robot_account = array('robot_url' => 'https://robot-ws.your-server.de', 'robot_user' => '', 'robot_password' => '');
 
-$inst->disclaimer('Proxmox-Network', '1.0');
+i$inst->disclaimer('Proxmox-Network', $version);
 $inst->swriteln();
 $inst->swriteln('The script generates a network-config.', 'info');
 $inst->swriteln();

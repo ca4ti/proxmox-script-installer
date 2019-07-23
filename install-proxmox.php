@@ -31,6 +31,8 @@ $work_dir = getcwd();
 
 exec('hostname -f', $hostname);
 
+$version = '1.1';
+
 // defaults
 $install = array();
 $install['postfix_type'] = "'Internet Site'";
@@ -43,7 +45,7 @@ $install['email'] = 'admin@local';
 $install['ssh_port'] = '22';
 $install['ssh_rootlogin'] = 'yes';
 $install['le'] = 'y';
-$install['network'] = 'routed';
+$install['network'] = '';
 $install['update_os'] = 'y';
 $install['distname'] = '';
 $install['proxmox_version'] = '';
@@ -53,7 +55,7 @@ unset($hostname);
 $robot_account = array('robot_url' => 'https://robot-ws.your-server.de', 'robot_user' => '', 'robot_password' => '');
 $le_available = false;
 
-$inst->disclaimer('Proxmox-Setup', '1.0');
+$inst->disclaimer('Proxmox-Setup', $version);
 $inst->get_distname();
 
 $inst->swriteln('Detected OS: Debian '.$install['distname'], 'info');
