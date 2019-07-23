@@ -38,7 +38,7 @@ $install['network'] = 'routed';
 
 $robot_account = array('robot_url' => 'https://robot-ws.your-server.de', 'robot_user' => '', 'robot_password' => '');
 
-i$inst->disclaimer('Proxmox-Network', $version);
+$inst->disclaimer('Proxmox-Network', $version);
 $inst->swriteln();
 $inst->swriteln('The script generates a network-config.', 'info');
 $inst->swriteln();

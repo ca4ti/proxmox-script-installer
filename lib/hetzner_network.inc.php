@@ -436,6 +436,7 @@ class hetzner_network extends installer_base {
 		} else {
 			file_put_contents("/root/interfaces.generated", implode("\n", $out));
 			$this->swriteln("\nFind the generated config in /root/interfaces.generated", 'info');
+			$this->swriteln("\nFor Debian Buster do not forget to install bridge-utils.", 'info');
 		}
 	}
 }
