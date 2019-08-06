@@ -286,6 +286,16 @@ class installer_base {
 		$this->swriteln('fitness for a particular purpose.');
 		$this->swriteln('By continuing to use this software, you agree to this.');
 		$this->swriteln();
+		$latest = @dns_get_record('hetzner-proxmox.schaal-it.net', DNS_TXT)[0]['entries'][0];
+		if($latest !== false && version_compare($latest, $version, '>')) { 
+			$this->swriteln();
+			$this->swriteln('This version '.$version.' is outdated - the latest version is '.$latest, 'warn');
+			$this->swriteln('You can get the latest version from https://download.schaal-it.net/hetzner-proxmox.tgz');
+			$this->swriteln();
+			$temp = $this->simple_query('Continue without updating?', array('y','n'), 'n');
+			if($temp == 'n') die('aborted');
+
+		}
 	}
 
 }
