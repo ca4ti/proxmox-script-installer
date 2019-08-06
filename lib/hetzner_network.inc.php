@@ -86,8 +86,8 @@ class hetzner_network extends installer_base {
 		$server_ipv6 = '';
 		foreach($results->server->subnet as $t) {
 			if(filter_var($t->ip.'2', FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) {
-				$ipv6_subnet[] = array('address' => $t->ip.'1', 'netmask' => $t->mask);
-				if($server_ipv6 == '') $server_ipv6 = $t->ip.'2';
+				$ipv6_subnet[] = array('address' => $t->ip.'2', 'netmask' => $t->mask);
+				if($server_ipv6 == '') $server_ipv6 = $t->ip.'1';
 			}
 			if(filter_var($t->ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
 				$ipv4_subnet[] = array('address' => $t->ip, 'netmask' => $t->mask);
