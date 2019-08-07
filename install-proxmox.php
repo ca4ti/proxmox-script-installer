@@ -31,7 +31,7 @@ $work_dir = getcwd();
 
 exec('hostname -f', $hostname);
 
-$version = '1.1';
+$version = '1.2';
 
 // defaults
 $install = array();
