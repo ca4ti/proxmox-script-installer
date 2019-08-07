@@ -26,7 +26,7 @@ require('lib/installer_base.inc.php');
 require('lib/installer_proxmox.inc.php');
 require('lib/hetzner_network.inc.php');
 
-$version = '1.1';
+$version = '1.2';
 
 $inst = new installer_base;
 
