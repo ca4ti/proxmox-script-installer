@@ -54,7 +54,7 @@ class installer_proxmox extends installer_base {
 		file_put_contents('/etc/apt/sources.list', 'deb http://download.proxmox.com/debian '.strtolower($install['distname'])." pve-no-subscription\n", FILE_APPEND);
 		system('wget -q http://download.proxmox.com/debian/proxmox-ve-release-'.$install['proxmox_version'].'.gpg -O /etc/apt/trusted.gpg.d/proxmox-ve-release-'.$install['proxmox_version'].'.gpg');
 		system('aptitude -q -y purge firmware-bnx2x firmware-realtek firmware-linux firmware-linux-free firmware-linux-nonfree');
-		if(strtolower($install['distname'] == 'Buster')) system("echo samba-common samba-common/dhcp boolean false| debconf-set-selections");
+		if(strtolower($install['distname'] == 'buster')) system("echo samba-common samba-common/dhcp boolean false| debconf-set-selections");
 		system('apt-get update && apt -y install proxmox-ve');
 	}
 	
