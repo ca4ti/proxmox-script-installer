@@ -62,7 +62,7 @@ class installer_proxmox extends installer_base {
 		global $install;
 
 		$this->swriteln("Installing Let's Encrypt", 'info');
-		$this->_exec("cd /tmp && wget 'https://github.com/Neilpang/acme.sh/archive/master.zip' && unzip master.zip && rm master.zip && mv acme.sh-master/acme.sh /root");
+		$this->_exec("cd /tmp && wget 'https://github.com/acmesh-official/acme.sh/archive/master.zip' && unzip master.zip && rm master.zip && mv acme.sh-master/acme.sh /root");
 		$this->_exec('mkdir -p /root/.le');
 		system('/root/acme.sh --install --accountconf /root/.le/account.conf --accountkey /root/.le/account.key --accountemail '.$install['email']);
 		system('/root/acme.sh --issue --standalone --keypath /etc/pve/local/pveproxy-ssl.key --fullchainpath /etc/pve/local/pveproxy-ssl.pem --reloadcmd "systemctl restart pveproxy" -d '.$install['host']);
