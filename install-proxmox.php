@@ -53,7 +53,7 @@ unset($hostname);
 $robot_account = array('robot_url' => 'https://robot-ws.your-server.de', 'robot_user' => '', 'robot_password' => '');
 $le_available = false;
 
-$inst->disclaimer('Proxmox-Setup', '1.0');
+$inst->disclaimer('Proxmox-Setup', '1.2');
 $inst->get_distname();
 
 $inst->swriteln('Detected OS: Debian '.$install['distname'], 'info');
