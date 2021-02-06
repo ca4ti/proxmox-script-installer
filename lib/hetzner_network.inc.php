@@ -29,7 +29,7 @@ class hetzner_network extends installer_base {
 	protected $robot;
 	protected $manual = false;
 	protected $vlan_networks = array();
-	protected $version = '1.1';
+	protected $version = '1.2.1';
 	protected $support_url = 'https://schaal-it.com/script-to-install-proxmox-5-x-and-6-x-on-a-dedicated-hetzner-server/';
 
 	public function __construct($install, $robot_account, $manual = false) {
@@ -87,7 +87,7 @@ class hetzner_network extends installer_base {
 		foreach($results->server->subnet as $t) {
 			if(filter_var($t->ip.'2', FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) {
 				$ipv6_subnet[] = array('address' => $t->ip.'2', 'netmask' => $t->mask);
-				if($server_ipv6 == '') $server_ipv6 = $t->ip.'1';
+				if($server_ipv6 == '') $server_ipv6 = $t->ip.'2';
 			}
 			if(filter_var($t->ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
 				$ipv4_subnet[] = array('address' => $t->ip, 'netmask' => $t->mask);
@@ -101,6 +101,9 @@ class hetzner_network extends installer_base {
 		switch($type) {
 			case 'routed':
 				$this->network_routed($network_setup);
+				break;
+			case 'bridged':
+				$this->network_bridged($network_setup);
 				break;
 			default:
 				die('Unknnown network-type');
@@ -194,6 +197,93 @@ class hetzner_network extends installer_base {
 		$this->write_network_config($out);
 	}
 
+	private function network_bridged($network_setup) {
+		global $install;
+
+		$vmbr = array();
+		$count = 0;
+		// ipv4-subnets
+		$ipv4_subnet = $network_setup['ipv4_subnet'];
+		if(is_array($ipv4_subnet) && !empty($ipv4_subnet)) {
+			foreach($ipv4_subnet as $ip) {
+				$vmbr[$count]['ipv4_subnet'] = $ip;
+					$count++;
+			}
+			$max = $count;
+		}
+		if(is_array($ipv4_subnet) && !empty($ipv4_subnet)) $count = $max; else $count = 0;
+
+		// single ip(s)
+		$single_ip = $network_setup['single_ip'];
+		if(is_array($single_ip) && !empty($single_ip)) {
+			foreach($single_ip as $ip) {
+				if(isset($vmbr[$count]['ipv4']))
+				$vmbr[$count]['ipv4'] = $vmbr[$count]['ipv4'].','.$ip; else $vmbr[$count]['ipv4'] = $ip;
+			}
+		}
+
+		// ipv6-subnet
+		$ipv6_subnet = $network_setup['ipv6_subnet'];
+		$count = 0;
+		if(is_array($ipv6_subnet) && !empty($ipv6_subnet)) {
+			foreach($ipv6_subnet as $ip) {
+				$vmbr[$count]['ipv6'] = $ip;
+				$count++;
+			}
+		}
+
+		$nic = $install['nic'];
+		$server_ip = $network_setup['server_ip'];
+		$gateway = $network_setup['gateway'];
+		$server_ipv6 = $network_setup['server_ipv6'];
+
+		// write config
+		$out = array();
+		$out = $this->network_base($out, $network_setup);
+		$out = $this->network_vlan($out);
+		foreach($vmbr as $id=>$rec) {
+			$out[] ='auto vmbr'.$id;
+			foreach($rec as $type=>$ip) {
+				switch($type) {
+				case 'ipv4':
+					$out [] ='iface vmbr'.$id.' inet static';;
+					$out [] ="\taddress\t\t".$server_ip;
+					$out [] ="\tnetmask\t\t255.255.255.255";
+					$out [] ="\tpointopoint\t\t".$gateway;
+					$out [] ="\tgateway\t\t".$gateway;
+					$out [] ="\tbridge_ports\teth0";
+					$out [] ="\tbridge_stp\toff";
+					$out [] ="\tbridge_fd\t1";
+					$out [] ="\tbridge_hello\t2";
+					$out [] ="\tbridge_maxage\t12";
+					$temp=explode(',', $ip);
+					foreach($temp as $t) {
+						$out [] ="\tup ip route add ".$t.'/32 dev vmbr'.$id;
+					}
+					$out[] = '';
+					break;
+				case 'ipv4_subnet':
+					$out [] ='iface vmbr'.$id.' inet static';
+					$out [] ="\taddress\t\t".$ip['address'];
+					$out [] ="\tnetmask\t\t".$ip['netmask'];
+					$out [] ="\tbridge_ports\tnone";
+					$out [] ="\tbridge_stp\toff";
+					$out [] ="\tbridge_fd\t0";
+					$out[] = '';
+					break;
+				case 'ipv6':
+					$out [] ='iface vmbr'.$id.' inet6 static';
+					$out[]="\taddress\t\t".$ip['address'];
+					$out[]="\tnetmask\t\t".$ip['netmask'];
+					$out[] = '';
+					break;
+				}
+			}
+		}
+		$this->write_network_config($out);
+	}
+
+
 	private function network_base($out, $network_setup) {
 		global $install;
 
@@ -224,12 +314,17 @@ class hetzner_network extends installer_base {
 			$out[] = "\tnetmask\t\t255.255.255.255";
 			$out[] = "\tgateway\t\t".$gateway;
 			$out[] = "\tpointopoint\t".$gateway;
+			$out[] = "\tup\t\tsysctl -p";
+			$out[] = "\tpost-up\t\tip address add $server_ipv6/128 dev $nic";
+			$out[] = "\tpost-up\t\tip route add default via fe80::1 dev $nic";
 			$out[] = '';
+/*
 			$out[] = 'iface '.$nic.' inet6 static';
 			$out[] = "\taddress\t\t".$server_ipv6;
 			$out[] = "\tnetmask\t\t128";
 			$out[] = "\tgateway\t\tfe80::1";
 			$out[] = "\tup sysctl -p";
+ */
 		}
 		$out[] = '';
 
@@ -275,7 +370,9 @@ class hetzner_network extends installer_base {
 				$out[] = 'auto '.$nic.'.'.$vlan_id;
 				$out[] = 'iface '.$nic.'.'.$vlan_id.' inet static';
 				$out[] = "\tvlan-raw-device\t".$nic;
-				$out[] = "\tmtu\t\t1400";;
+				$out[] = "\tmtu\t\t1400";
+				$out[] = "\taddress\t\t0.0.0.0";
+				$out[] = "\tnetmask\t\t0.0.0.0";
 				$out[] = '';
 				$out[] = '# vlan';
 				$out[] = 'auto vmbr'.$vlan_id;
@@ -435,7 +532,7 @@ class hetzner_network extends installer_base {
 			$this->swriteln("\nCheck the network-confg and reboot your server", 'note');
 		} else {
 			file_put_contents("/root/interfaces.generated", implode("\n", $out));
-			$this->swriteln("\nFind the generated config in /root/interfaces.generated", 'info');
+			$this->swriteln("\nFind the generated config in /root/interfaces.generated.", 'info');
 			$this->swriteln("\nFor Debian Buster do not forget to install bridge-utils.", 'info');
 		}
 	}

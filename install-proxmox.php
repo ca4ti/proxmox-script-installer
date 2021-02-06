@@ -31,8 +31,6 @@ $work_dir = getcwd();
 
 exec('hostname -f', $hostname);
 
-$version = '1.2';
-
 // defaults
 $install = array();
 $install['postfix_type'] = "'Internet Site'";
@@ -55,7 +53,7 @@ unset($hostname);
 $robot_account = array('robot_url' => 'https://robot-ws.your-server.de', 'robot_user' => '', 'robot_password' => '');
 $le_available = false;
 
-$inst->disclaimer('Proxmox-Setup', $version);
+$inst->disclaimer('Proxmox-Setup', '1.0');
 $inst->get_distname();
 
 $inst->swriteln('Detected OS: Debian '.$install['distname'], 'info');
@@ -133,7 +131,7 @@ if($temp == 'y') {
 }
 unset($temp);
 $install['ssh_port'] = $inst->free_query('SSH Port', $install['ssh_port'], 'ssh_port');
-$install['ssh_rootlogin'] = $inst->free_query('SSH PremitRootLogin', 'yes', 'ssh_rootlogin');
+$install['ssh_rootlogin'] = $inst->free_query('SSH PermitRootLogin', 'yes', 'ssh_rootlogin');
 $install['email'] = $inst->free_query("Email to use with Let's Encrypt and in scripts", $install['email'], 'email');
 if($install['email'] != '') {
 	$install['le'] = $inst->simple_query("Use Let's Encrypt for the Interface", array('y','n'), 'y');
@@ -204,6 +202,7 @@ foreach ($custom_dirs as $dir) {
 	}
 }
 
+$inst->_exec('echo "syslog errno 1" >> /usr/share/lxc/config/common.seccomp');
 $inst->swriteln();
 $inst->swriteln('Install finished. You can reboot the server now', 'info');
 
