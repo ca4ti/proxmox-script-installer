@@ -1,7 +1,7 @@
-# Script to install Proxmox 5.x and 6.x on a Dedicated Hetzner Server
+# Script to install Proxmox 5.x, 6.x and 7.x on a Dedicated Hetzner Server
 
 The Proxmox-Version depends on your OS:
-Proxmox 5.x on Debian Jessie and Proxmox 6.x on Debian Buster
+Proxmox 5.x on Debian Jessie, Proxmox 6.x on Debian Buster and Proxmox 7.x on Debian Bullseye
 
 - Install Proxmox on your server 
 - Let's Encrypt Certificate for the Proxmox-Interface
@@ -13,7 +13,9 @@ Proxmox 5.x on Debian Jessie and Proxmox 6.x on Debian Buster
 ## Notes
 You can put your Robot-Credentials in the file robot.conf.php so the script will not ask your for the Robot-Login.
 
-If you just want to generate the network config (even for a different server), see chapter **Network-Setup** at the end of this page
+If you just want to generate the network config (even for a different server), see chapter **Network-Setup** at the end of this page.
+
+When you want to create the network-config, the script use the template-file tpl/network.tpl - you can adjust this file to your needs.
 
 ## Installation
 Boot your server into the Rescue-Mode, use `installimage` and Choose the minimal Debian-Strech or Debian-Buster Version.
