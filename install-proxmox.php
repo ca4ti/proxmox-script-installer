@@ -22,19 +22,20 @@
  * THE SOFTWARE.
 */
 
-require('lib/installer_base.inc.php');
-require('lib/installer_proxmox.inc.php');
+define('PROXMOX_ROOT', realpath(dirname(__FILE__).'/../proxmox'));
+define('VERSION', '1.4');
+
+require 'lib/installer_base.inc.php';
+require 'lib/installer_proxmox.inc.php';
+require 'lib/hetzner_network.inc.php';
+require_once 'lib/tpl.inc.php';
 
 $inst = new installer_base;
-
-$work_dir = getcwd();
-
-exec('hostname -f', $hostname);
 
 // defaults
 $install = array();
 $install['postfix_type'] = "'Internet Site'";
-$install['host'] = $hostname[0];
+$install['host'] = gethostname();
 $install['nic'] = '';
 $install['ip'] = gethostbyname($install['host']);
 $install['proxmox_vg'] = '';
@@ -48,12 +49,10 @@ $install['update_os'] = 'y';
 $install['distname'] = '';
 $install['proxmox_version'] = '';
 
-unset($hostname);
-
 $robot_account = array('robot_url' => 'https://robot-ws.your-server.de', 'robot_user' => '', 'robot_password' => '');
 $le_available = false;
 
-$inst->disclaimer('Proxmox-Setup', '1.2.1');
+$inst->disclaimer('Proxmox-Setup', VERSION);
 $inst->get_distname();
 
 $inst->swriteln('Detected OS: Debian '.$install['distname'], 'info');
@@ -73,9 +72,8 @@ $inst->swriteln();
 $inst->swriteln('The script can configure your network-setup for proxmox. You need API-Credentials for the Hetzner-API.', 'info');
 $temp = $inst->simple_query('Do you want to autoconfigure the network?', array('y','n'), 'y');
 if($temp == 'y') {
-	require('lib/hetzner_network.inc.php');
-	if(file_exists($work_dir.'/robot.conf.php')) {
-		include($work_dir.'/robot.conf.php');
+	if(file_exists(PROXMOX_ROOT . '/robot.conf.php')) {
+		include(PROXMOX_ROOT . '/robot.conf.php');
 		if(isset($robot_url)) $robot_account['robot_url'] = $robot_url;
 		if(isset($robot_user)) $robot_account['robot_user'] = $robot_user;
 		if(isset($robot_password)) $robot_account['robot_password'] = $robot_password;
@@ -99,6 +97,7 @@ if($temp == 'y') {
 	$inst->swriteln('Logged in into the API', 'detail');
 	$install['network'] = 'routed';
 }
+
 $inst->swriteln();
 $inst->swriteln('Set some defaults:', 'info');
 $temp = $inst->simple_query('Enabled Thin-Pool for Proxmox?', array('y','n'), 'n');
@@ -165,7 +164,7 @@ if($temp == 'y') {
 }
 
 // process custom-dir
-$file = $work_dir.'/custom/etc/aliases'; 
+$file = PROXMOX_ROOT . '/custom/etc/aliases'; 
 if(file_exists($file)) {
 	$inst->swriteln('Updating /etc/aliases', 'info');
 	file_put_contents('/etc/aliases', $inst->replace_in_file($file), FILE_APPEND);
@@ -173,7 +172,7 @@ if(file_exists($file)) {
 	$inst->_exec('service postfix restart');
 }
 
-$file = $work_dir.'/custom/ssh/authorized_keys';
+$file = PROXMOX_ROOT . '/custom/ssh/authorized_keys';
 if(file_exists($file)) {
 	$inst->swriteln('Adding your authorized_keys', 'info');
 	if(!is_dir('/root/.ssh')) {
@@ -187,7 +186,8 @@ if(file_exists($file)) {
 
 $custom_dirs=array('/custom/etc/cron.d', '/custom/etc/sysctl.d', '/custom/root');
 foreach ($custom_dirs as $dir) {
-	if (is_dir($dir)) {
+	if (is_dir(PROXMOX_ROOT . $dir)) {
+		$dir = PROXMOX_ROOT . $dir;
 		$inst->swriteln('Try to copy files from '.$dir, 'info');
 		$files = $inst->scan_files($dir);
 		foreach ($files as $file) {

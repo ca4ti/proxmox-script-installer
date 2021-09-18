@@ -20,11 +20,15 @@
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
-*/
+**/
 
-require('lib/installer_base.inc.php');
-require('lib/installer_proxmox.inc.php');
-require('lib/hetzner_network.inc.php');
+define('PROXMOX_ROOT', realpath(dirname(__FILE__).'/../proxmox'));
+define('VERSION', '1.4');
+
+require 'lib/installer_base.inc.php';
+require 'lib/installer_proxmox.inc.php';
+require 'lib/hetzner_network.inc.php';
+require 'lib/tpl.inc.php';
 
 $inst = new installer_base;
 
@@ -36,16 +40,16 @@ $install['network'] = 'routed';
 
 $robot_account = array('robot_url' => 'https://robot-ws.your-server.de', 'robot_user' => '', 'robot_password' => '');
 
-$inst->disclaimer('Proxmox-Network', '1.2.1');
+$inst->disclaimer('Proxmox-Network', VERSION);
 $inst->swriteln();
 $inst->swriteln('The script generates a network-config.', 'info');
 $inst->swriteln();
 
-$install['ip'] = $inst->free_query('Generate the config for the Server with the IP', $install['ip'], 'ip');
-do $install['nic'] = $inst->free_query('Use NIC', $install['nic'], 'nic'); while (!$inst->validate($install['nic'], 'not_empty', 'NIC'));
+$install['ip'] = trim($inst->free_query('Generate the config for the Server with the IP', $install['ip'], 'ip'));
+do $install['nic'] = trim($inst->free_query('Use NIC', $install['nic'], 'nic')); while (!$inst->validate($install['nic'], 'not_empty', 'NIC'));
 
-if(file_exists('robot.conf.php')) {
-	include('robot.conf.php');
+if(file_exists(PROXMOX_ROOT . '/robot.conf.php')) {
+	include(PROXMOX_ROOT . '/robot.conf.php');
 	if(isset($robot_url)) $robot_account['robot_url'] = $robot_url;
 	if(isset($robot_user)) $robot_account['robot_user'] = $robot_user;
 	if(isset($robot_password)) $robot_account['robot_password'] = $robot_password;
@@ -53,9 +57,7 @@ if(file_exists('robot.conf.php')) {
 } 
 
 if($robot_account['robot_url'] == '' || $robot_account['robot_user'] == '' || $robot_account['robot_password'] == '') $inst->api_credentials();
-
 $network = new hetzner_network($install, $robot_account, true);
-	
 $check = $network->connect();
 if($check !== true) {
 	$inst->swriteln('Hetzner-API .'.$check);
