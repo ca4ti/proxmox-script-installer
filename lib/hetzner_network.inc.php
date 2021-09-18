@@ -29,7 +29,7 @@ class hetzner_network extends installer_base {
 	protected $robot;
 	protected $manual = false;
 	protected $vlan_networks = array();
-	protected $version = '1.2.1';
+	protected $version = '1.2';
 	protected $support_url = 'https://schaal-it.com/script-to-install-proxmox-5-x-and-6-x-on-a-dedicated-hetzner-server/';
 
 	public function __construct($install, $robot_account, $manual = false) {
@@ -50,6 +50,38 @@ class hetzner_network extends installer_base {
 			return($e->getMessage());
 		}
 		return true;
+	}
+
+	public function get_traffic_ip_hour($ip) {
+		
+		$start_date = date("Y-m-d", time() - 7200);
+		$stop_date = date("Y-m-d", time() - 3600);
+		$start_hour = date("H", time() - 7200);
+		$stop_hour = date("H", time() - 3600);
+
+		$from_date = $start_date.'T'.$start_hour;
+		$to_date = $stop_date.'T'.$stop_hour;
+
+		$traffic_hour = $this->robot->trafficGetForIp($ip, 'day', $from_date, $to_date);
+		$traffic_today = $this->get_traffic_ip_today($ip);
+
+
+		$today = $value = json_decode(json_encode($traffic_today->traffic), true);
+		$hour = $value = json_decode(json_encode($traffic_hour->traffic), true);
+
+return(array('today' => $today, 'hour' => $hour));
+//return $hour;
+
+
+	}
+	
+	public function get_traffic_ip_today($ip) {
+		$start_date = date("Y-m-d", time());
+		$stop_date = date("Y-m-d", time());
+		$from_date = $start_date.'T00';
+		$stop_hour = date("H", time());
+		$to_date = $stop_date.'T'.$stop_hour;
+		return $this->robot->trafficGetForIp($ip, 'day', $from_date, $to_date);
 	}
 
 	public function reset_account($robot_account) {
@@ -73,7 +105,7 @@ class hetzner_network extends installer_base {
 		$temp = $this->robot->ipGet($network_setup['server_ip']);
 		$network_setup['gateway'] = $temp->ip->gateway;
 
-
+		// connected vswitches
 		$this->vswitch_config();
 
 		// add single-ip(s)
@@ -98,247 +130,114 @@ class hetzner_network extends installer_base {
 		$network_setup['ipv4_subnet'] = $ipv4_subnet;
 		$network_setup['server_ipv6'] = $server_ipv6;
 
-		switch($type) {
-			case 'routed':
-				$this->network_routed($network_setup);
-				break;
-			case 'bridged':
-				$this->network_bridged($network_setup);
-				break;
-			default:
-				die('Unknnown network-type');
-		}
+		$this->write_network_config($network_setup);
+
 	}
 
-	private function network_routed($network_setup) {
+	private function write_network_config($network_setup) {
 		global $install;
 
-		$vmbr = array();
-		$count = 0;
-		// ipv4-subnets
-		$ipv4_subnet = $network_setup['ipv4_subnet'];
-		if(is_array($ipv4_subnet) && !empty($ipv4_subnet)) {
-			foreach($ipv4_subnet as $ip) {
-				$vmbr[$count]['ipv4_subnet'] = $ip;
-					$count++;
+		//* write config
+		$tpl = new tpl();
+		$tpl->newTemplate('network.tpl');
+		$tpl->setVar('version', VERSION);
+		$tpl->setVar('network_type', $network_setup['type']);
+		$tpl->setVar('nic', $install['nic']);
+		$tpl->setVar('server_ip', $network_setup['server_ip']);
+		$tpl->setVar('gateway', $network_setup['gateway']);
+		$tpl->setVar('server_ipv6', $network_setup['server_ipv6']);
+
+		//* vswitch-ips
+		$out = $this->network_vlan();
+		if(is_array($out) && !empty($out)) {
+			$tpl_rec = array();
+			foreach($out as $idx=>$data) {
+				foreach($data as $val) {
+					$rec = $val;
+					$rec['nic'] = $install['nic'];
+					$rec['vlan_id'] = $idx;
+					$tpl_rec[] = $rec;
+				}
 			}
-			$max = $count;
-		}
-		if(is_array($ipv4_subnet) && !empty($ipv4_subnet)) $count = $max; else $count = 0;
-
-		// single ip(s)
-		$single_ip = @$network_setup['single_ip'];
-		if(is_array($single_ip) && !empty($single_ip)) {
-			foreach($single_ip as $ip) {
-				if(isset($vmbr[$count]['ipv4']))
-				$vmbr[$count]['ipv4'] = $vmbr[$count]['ipv4'].','.$ip; else $vmbr[$count]['ipv4'] = $ip;
-			}
+			$tpl->setLoop('vlan_devices', $tpl_rec);
 		}
 
-		// ipv6-subnet
-		if(
-			(is_array($single_ip) && !empty($single_ip)) ||
-			(is_array($ipv4_subnet) && !empty($ipv4_subnet)) 
-		) {
+		//* server-ips
+		$single_ips = @$network_setup['single_ip'];
 
-			$ipv6_subnet = $network_setup['ipv6_subnet'];
+		//* build subnet-array
+		$subnets = array();
+		$id = 0;
+		foreach($network_setup['ipv4_subnet'] as $subnet) {
+			$subnets[$id]['ipv4'] = $subnet;
+			$id++;
+		}
+		$id = 0;
+		foreach($network_setup['ipv6_subnet'] as $subnet) {
+			$subnets[$id]['ipv6'] = $subnet;
+			$id++;
+		}
+
+		$vmbr_id = ($network_setup['type'] == 'routed') ? 0 : 1;
+
+		if(is_array($subnets) && !empty($subnets)) {
+			$tpl_rec = array();
 			$count = 0;
-			if(is_array($ipv6_subnet) && !empty($ipv6_subnet)) {
-				foreach($ipv6_subnet as $ip) {
-					$vmbr[$count]['ipv6'] = $ip;
-					$count++;
+			foreach($subnets as $subnet) {
+				$tpl_rec = array();
+				$rec = array();
+				$rec['vmbr_id'] = $vmbr_id;
+				$has_ipv4 = (isset($subnet['ipv4']) && !empty($subnet['ipv4'])) ? true :false;
+				$has_ipv6 = (isset($subnet['ipv6']) && !empty($subnet['ipv6'])) ? true :false;
+				if($has_ipv4 === true) {
+					$rec['ip'] = $subnet['ipv4']['address'];
+					$rec['mask'] = $subnet['ipv4']['netmask'];
 				}
-			}
-		}
-		$nic = $install['nic'];
-		$server_ip = $network_setup['server_ip'];
-		$gateway = $network_setup['gateway'];
-		$server_ipv6 = $network_setup['server_ipv6'];
-
-		// write config
-		$out = array();
-		$out = $this->network_base($out, $network_setup);
-		$out = $this->network_vlan($out);
-		foreach($vmbr as $id=>$rec) {
-			$out[] ='auto vmbr'.$id;
-			foreach($rec as $type=>$ip) {
-				switch($type) {
-				case 'ipv4':
-					$out [] ='iface vmbr'.$id.' inet static';;
-					$out [] ="\taddress\t\t".$server_ip;
-					$out [] ="\tnetmask\t\t255.255.255.255";
-					$out [] ="\tbridge_ports\tnone";
-					$out [] ="\tbridge_stp\toff";
-					$out [] ="\tbridge_fd\t0";
-					$temp=explode(',', $ip);
-					foreach($temp as $t) {
-						$out [] ="\tup ip route add ".$t.'/32 dev vmbr'.$id;
+				if($has_ipv6 === true) {
+					$rec['ip_v6'] = $subnet['ipv6']['address'];
+					$rec['mask_v6'] = $subnet['ipv6']['netmask'];
+				}
+				if(is_array($single_ips) && !empty($single_ips) && $vmbr_id == 0) {
+					$count = 0;
+					$temp = array();
+					$rec['vmbr_id'] = $vmbr_id;
+					$rec['ip'] = $network_setup['server_ip'];
+					$rec['mask'] = 32;
+					foreach($single_ips as $single_ip) {
+						$temp[$count]['single_ip'] = $single_ip;
+						$temp[$count]['vmbr_id'] = $vmbr_id;
+						$count++;
 					}
-					$out[] = '';
-					break;
-				case 'ipv4_subnet':
-					$out [] ='iface vmbr'.$id.' inet static';
-					$out [] ="\taddress\t\t".$ip['address'];
-					$out [] ="\tnetmask\t\t".$ip['netmask'];
-					$out [] ="\tbridge_ports\tnone";
-					$out [] ="\tbridge_stp\toff";
-					$out [] ="\tbridge_fd\t0";
-					$out[] = '';
-					break;
-				case 'ipv6':
-					$out [] ='iface vmbr'.$id.' inet6 static';
-					$out[]="\taddress\t\t".$ip['address'];
-					$out[]="\tnetmask\t\t".$ip['netmask'];
-					$out[] = '';
-					break;
+					$rec['single_ips'] = $temp;
 				}
+				$tpl_rec[] = $rec;
+				$vmbr_id++;
 			}
+			$tpl->setLoop('local_ips', $tpl_rec);
 		}
-		$this->write_network_config($out);
+
+		if($this->manual === false) {
+			$this->swriteln('copy /etc/network/interfaces to /root/interfaces.save', 'info');
+			system('cp /etc/network/interfaces /root/interfaces.save');
+
+			$this->swriteln('writing new /etc/network/interfaces', 'info');
+			$this->wf("/etc/network/interfaces", $tpl->grab());
+
+			$this->swriteln("\nCheck the network-confg and reboot your server", 'note');
+		} else {
+			$this->wf("/root/interfaces.generated", $tpl->grab());
+			$this->swriteln("\nFind the generated config in /root/interfaces.generated.", 'info');
+			$this->swriteln("\nFor Debian Buster do not forget to install bridge-utils.", 'info');
+		}
 	}
 
-	private function network_bridged($network_setup) {
+	private function network_vlan() {
 		global $install;
-
-		$vmbr = array();
-		$count = 0;
-		// ipv4-subnets
-		$ipv4_subnet = $network_setup['ipv4_subnet'];
-		if(is_array($ipv4_subnet) && !empty($ipv4_subnet)) {
-			foreach($ipv4_subnet as $ip) {
-				$vmbr[$count]['ipv4_subnet'] = $ip;
-					$count++;
-			}
-			$max = $count;
-		}
-		if(is_array($ipv4_subnet) && !empty($ipv4_subnet)) $count = $max; else $count = 0;
-
-		// single ip(s)
-		$single_ip = $network_setup['single_ip'];
-		if(is_array($single_ip) && !empty($single_ip)) {
-			foreach($single_ip as $ip) {
-				if(isset($vmbr[$count]['ipv4']))
-				$vmbr[$count]['ipv4'] = $vmbr[$count]['ipv4'].','.$ip; else $vmbr[$count]['ipv4'] = $ip;
-			}
-		}
-
-		// ipv6-subnet
-		$ipv6_subnet = $network_setup['ipv6_subnet'];
-		$count = 0;
-		if(is_array($ipv6_subnet) && !empty($ipv6_subnet)) {
-			foreach($ipv6_subnet as $ip) {
-				$vmbr[$count]['ipv6'] = $ip;
-				$count++;
-			}
-		}
-
-		$nic = $install['nic'];
-		$server_ip = $network_setup['server_ip'];
-		$gateway = $network_setup['gateway'];
-		$server_ipv6 = $network_setup['server_ipv6'];
-
-		// write config
-		$out = array();
-		$out = $this->network_base($out, $network_setup);
-		$out = $this->network_vlan($out);
-		foreach($vmbr as $id=>$rec) {
-			$out[] ='auto vmbr'.$id;
-			foreach($rec as $type=>$ip) {
-				switch($type) {
-				case 'ipv4':
-					$out [] ='iface vmbr'.$id.' inet static';;
-					$out [] ="\taddress\t\t".$server_ip;
-					$out [] ="\tnetmask\t\t255.255.255.255";
-					$out [] ="\tpointopoint\t\t".$gateway;
-					$out [] ="\tgateway\t\t".$gateway;
-					$out [] ="\tbridge_ports\teth0";
-					$out [] ="\tbridge_stp\toff";
-					$out [] ="\tbridge_fd\t1";
-					$out [] ="\tbridge_hello\t2";
-					$out [] ="\tbridge_maxage\t12";
-					$temp=explode(',', $ip);
-					foreach($temp as $t) {
-						$out [] ="\tup ip route add ".$t.'/32 dev vmbr'.$id;
-					}
-					$out[] = '';
-					break;
-				case 'ipv4_subnet':
-					$out [] ='iface vmbr'.$id.' inet static';
-					$out [] ="\taddress\t\t".$ip['address'];
-					$out [] ="\tnetmask\t\t".$ip['netmask'];
-					$out [] ="\tbridge_ports\tnone";
-					$out [] ="\tbridge_stp\toff";
-					$out [] ="\tbridge_fd\t0";
-					$out[] = '';
-					break;
-				case 'ipv6':
-					$out [] ='iface vmbr'.$id.' inet6 static';
-					$out[]="\taddress\t\t".$ip['address'];
-					$out[]="\tnetmask\t\t".$ip['netmask'];
-					$out[] = '';
-					break;
-				}
-			}
-		}
-		$this->write_network_config($out);
-	}
-
-
-	private function network_base($out, $network_setup) {
-		global $install;
-
-		$routed = @($network_setup['type'] == 'routed')?true:false;
-
-		$nic = $install['nic'];
-		$server_ip = $network_setup['server_ip'];
-		$gateway = $network_setup['gateway'];
-		$server_ipv6 = $network_setup['server_ipv6'];
-
-		$out[] = '# /etc/network/interfaces';
-		$out[] = '';
-		$out[] = '### generated using Proxmox-Setup Tool '.$this->version.' from schaal @it UG';
-		$out[] = '### '.$this->support_url;
-		$out[] = '###';
-		$out[] = '### Network-Type '.$network_setup['type'];
-		$out[] = '';
-		$out[] = '# loopback device';
-		$out[] = 'auto lo';
-		$out[] = 'iface lo inet loopback';
-		if($routed) {
-			$out[] = 'iface lo inet6 loopback';
-			$out[] = '';
-			$out[] = '# network device';
-			$out[] = 'auto '.$nic;
-			$out[] = 'iface '.$nic.' inet static';
-			$out[] = "\taddress\t\t".$server_ip;
-			$out[] = "\tnetmask\t\t255.255.255.255";
-			$out[] = "\tgateway\t\t".$gateway;
-			$out[] = "\tpointopoint\t".$gateway;
-			$out[] = "\tup\t\tsysctl -p";
-			$out[] = "\tpost-up\t\tip address add $server_ipv6/128 dev $nic";
-			$out[] = "\tpost-up\t\tip route add default via fe80::1 dev $nic";
-			$out[] = '';
-/*
-			$out[] = 'iface '.$nic.' inet6 static';
-			$out[] = "\taddress\t\t".$server_ipv6;
-			$out[] = "\tnetmask\t\t128";
-			$out[] = "\tgateway\t\tfe80::1";
-			$out[] = "\tup sysctl -p";
- */
-		}
-		$out[] = '';
-
-		return $out;
-	}
-
-	private function network_vlan($out) {
-		global $install;
-
 
 		$vlan = false;
 		$vlan_extern = false;
 
-		$todo = array();
+		$out = array();
 
 		if(isset($install['vlan']) && !empty($install['vlan'])) {
 			$vlan = true;
@@ -346,7 +245,7 @@ class hetzner_network extends installer_base {
 			foreach($all as $vlan_id=>$value) {
 				$data = explode(',', $value);
 				if(is_array($data) && !empty($data)) {
-					$todo[$vlan_id][] = array('type' => 'private', 'ip' => $data[0], 'mask' => $data[1], 'mtu' => $data[2]); 
+					$out[$vlan_id][] = array('type' => 'private', 'ip' => $data[0], 'mask' => $data[1], 'mtu' => $data[2]); 
 				}
 			}
 		}
@@ -358,36 +257,11 @@ class hetzner_network extends installer_base {
 				foreach($value as $val) {
 					$data = explode(',', $val);
 					if(is_array($data) && !empty($data)) {
-						$todo[$vlan_id][] = array('type' => 'public', 'ip' => $data[0], 'mask' => $data[1], 'gw' => $data[2]); 
+						$out[$vlan_id][] = array('type' => 'public', 'ip' => $data[0], 'mask' => $data[1], 'gw' => $data[2]); 
 					}
 				}
 			}	
 		}
-		if(is_array($todo) && !empty($todo)) {
-			$nic = $install['nic'];
-			foreach($todo as $vlan_id=>$value) {
-				$out[] = '# vlan raw device';
-				$out[] = 'auto '.$nic.'.'.$vlan_id;
-				$out[] = 'iface '.$nic.'.'.$vlan_id.' inet static';
-				$out[] = "\tvlan-raw-device\t".$nic;
-				$out[] = "\tmtu\t\t1400";
-				$out[] = "\taddress\t\t0.0.0.0";
-				$out[] = "\tnetmask\t\t0.0.0.0";
-				$out[] = '';
-				$out[] = '# vlan';
-				$out[] = 'auto vmbr'.$vlan_id;
-				$out[] = 'iface vmbr'.$vlan_id.' inet static';
-				$out[] = "\tbridge_ports\t".$nic.'.'.$vlan_id;
-				$out[] = "\tbridge_stp\toff";
-				$out[] = "\tbridge_fd\t0";
-				foreach($value as $val) {
-					$out[] = "\taddress\t\t".$val['ip'];
-					$out[] = "\tnetmask\t\t".$val['mask'];
-					$out[] = '';
-				}
-			}
-		}
-
 		return $out;
 	}
 
@@ -518,23 +392,5 @@ class hetzner_network extends installer_base {
 		return [$ip_min,$ip_max];
 	}
 
-	private function write_network_config($out) {
-
-		if($this->manual === false) {
-			file_put_contents("/interfaces", implode("\n", $out));
-
-			$this->swriteln('copy /etc/network/interfaces to /root/interfaces.save', 'info');
-			system('cp /etc/network/interfaces /root/interfaces.save');
-
-			$this->swriteln('writing new /etc/network/interfaces', 'info');
-			system('mv /interfaces /etc/network/interfaces');
-
-			$this->swriteln("\nCheck the network-confg and reboot your server", 'note');
-		} else {
-			file_put_contents("/root/interfaces.generated", implode("\n", $out));
-			$this->swriteln("\nFind the generated config in /root/interfaces.generated.", 'info');
-			$this->swriteln("\nFor Debian Buster do not forget to install bridge-utils.", 'info');
-		}
-	}
 }
 ?>

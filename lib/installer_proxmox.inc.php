@@ -55,6 +55,7 @@ class installer_proxmox extends installer_base {
 		system('wget -q http://download.proxmox.com/debian/proxmox-ve-release-'.$install['proxmox_version'].'.gpg -O /etc/apt/trusted.gpg.d/proxmox-ve-release-'.$install['proxmox_version'].'.gpg');
 		system('aptitude -q -y purge firmware-bnx2x firmware-realtek firmware-linux firmware-linux-free firmware-linux-nonfree');
 		if(strtolower($install['distname'] == 'buster')) system("echo samba-common samba-common/dhcp boolean false| debconf-set-selections");
+		if(strtolower($install['distname'] == 'bullseye')) system("wget -q https://enterprise.proxmox.com/debian/proxmox-release-bullseye.gpg -O /etc/apt/trusted.gpg.d/proxmox-release-bullseye.gpg");
 		system('apt-get update && apt -y install proxmox-ve');
 	}
 	

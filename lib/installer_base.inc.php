@@ -40,29 +40,29 @@ class installer_base {
 	}
 
 	public function free_query($query, $default, $name = '') {
-		global $autoinstall;
+//		global $autoinstall;
 
-		if($name != '' && $autoinstall[$name] != '') $input = $autoinstall[$name];
-		else {
+//		if($name != '' && $autoinstall[$name] != '') $input = $autoinstall[$name];
+//		else {
 			$this->swrite($query.' ['.$default.']: ');
 			$input = $this->sread();
-		}
+//		}
 		$answer = @($input == '')?$default:$input;
 
 		return $answer;
 	}
 
 	public function simple_query($query, $answers, $default, $name = '') {
-		global $autoinstall;
+//		global $autoinstall;
 	
 		$finished = false;
 		do {
-			if($name != '' && $autoinstall[$name] != '') $input = $autoinstall[$name];
-			else {
+//			if($name != '' && $autoinstall[$name] != '') $input = $autoinstall[$name];
+//			else {
 				$answers_str = implode(',', $answers);
 				$this->swrite($query.' ('.$answers_str.') ['.$default.']: ');
 				$input = $this->sread();
-			}
+//			}
 			//* Select the default
 			if($input == '') {
 				$answer = $default;
@@ -175,8 +175,10 @@ class installer_base {
 				$distver = 'Stretch';
 			} elseif(substr(trim(file_get_contents('/etc/debian_version')),0,2) == '10') {
 				$distver = 'Buster';
+			} elseif(substr(trim(file_get_contents('/etc/debian_version')),0,2) == '11') {
+				$distver = 'Bullseye';
 			} elseif(strstr(trim(file_get_contents('/etc/debian_version')), '/sid')) {
-				$distver = 'Buster';
+				$distver = 'Bullseye';
 			} else {
 				$distver = 'unknown';
 			}
@@ -194,6 +196,7 @@ class installer_base {
 		}
 		if ($distver == 'Stretch') $install['proxmox_version'] = '5.x';
 		if ($distver == 'Buster') $install['proxmox_version'] = '6.x';
+		if ($distver == 'Bullseye') $install['proxmox_version'] = '7.x';
 		$install['distname'] = $distver;	
 	}
 	
@@ -286,17 +289,26 @@ class installer_base {
 		$this->swriteln('fitness for a particular purpose.');
 		$this->swriteln('By continuing to use this software, you agree to this.');
 		$this->swriteln();
-		$latest = @dns_get_record('hetzner-proxmox.schaal-it.net', DNS_TXT)[0]['entries'][0];
-		if($latest !== false && version_compare($latest, $version, '>')) {
-			$this->swriteln();
-			$this->swriteln('This version '.$version.' is outdated - the latest version is '.$latest, 'warn');
-			$this->swriteln('You can get the latest version from https://download.schaal-it.net/hetzner-proxmox.tgz');
-			$this->swriteln();
-			$temp = $this->simple_query('Continue without updating?', array('y','n'), 'n');
-			if($temp == 'n') die('aborted');
-
-		}
 	}
 
+	public function mkdirs($strPath, $mode = '0755') {
+		if(isset($strPath) && $strPath != '') {
+			if(is_dir($strPath)) return true;
+			$pStrPath = dirname($strPath);
+			if(!$this->mkdirs($pStrPath, $mode)) return false;
+			$old_umask = umask(0);
+			$ret_val = mkdir($strPath, octdec($mode));
+			umask($old_umask);
+			return $ret_val;
+		}
+		return false;
+	}
+
+	public function wf($file, $content) {
+		$this->mkdirs(dirname($file));
+		if(!$fp = fopen($file, 'wb')) $this->swriteln('WARNING: could not open file '.$file, 'crit');
+		fwrite($fp, $content);
+		fclose($fp);
+	}
 }
 ?>
