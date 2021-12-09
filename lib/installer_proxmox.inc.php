@@ -68,7 +68,8 @@ class installer_proxmox extends installer_base {
 			file_put_contents('/root/add_le.sh', 
 "pvenode acme account register default " . $install['email'] . "\n
 pvenode config set --acme domains=" . $install['host'] . "\n
-pvenode acme cert order --force \n";
+pvenode acme cert order --force\n"
+);
 			system('chown root.root ' . '/root/add_le.sh');
 			system('chmod 700 ' . '/root/add_le.sh');
 		} else {
