@@ -194,9 +194,10 @@ foreach ($custom_dirs as $dir) {
 		$inst->swriteln('Try to copy files from '.$dir, 'info');
 		$files = $inst->scan_files($dir);
 		foreach ($files as $file) {
-			if($inst->mkdir_custom($file)) {
-				$new = str_replace('custom', '', $file);
-				file_put_contents($file, $inst->replace_in_file($file));
+			$_dir = str_replace(PROXMOX_ROOT . '/custom', '', $file);
+			if($inst->mkdir_custom($_dir)) {
+				$new = str_replace(PROXMOX_ROOT . '/custom', '', $file);
+				file_put_contents($new, $inst->replace_in_file($file));
 				$inst->swriteln("\tCopy ".$file, 'detail');
 			} else {
 				$inst->swriteln("\tCreating target-dir failed - skip ".$file, 'warn');
@@ -209,4 +210,7 @@ $inst->_exec('echo "syslog errno 1" >> /usr/share/lxc/config/common.seccomp');
 $inst->swriteln();
 $inst->swriteln('Install finished. You can reboot the server now', 'info');
 
+if($install['proxmox_version'] == '7.x' && $install['le'] == 'y') {
+	$inst->swriteln("To active Let's Encrypt run the script /root/add_le.sh after the reboot", 'info');
+}
 ?>

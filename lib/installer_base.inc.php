@@ -271,8 +271,8 @@ class installer_base {
 		if (count($t) > 1) {
 			array_pop($t);
 			$new = implode('/', $t);
-			exec(('mkdir -p '.$new), $ret, $val);
-			if($ret == 0) return true; else return false;
+			exec('mkdir -p ' . $new, $ret, $val);
+			if($val == 0) return true; else return false;
 		}
 		return true;
 	}

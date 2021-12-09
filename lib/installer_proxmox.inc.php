@@ -63,11 +63,12 @@ class installer_proxmox extends installer_base {
 		global $install;
 
 		if($install['proxmox_version'] == '7.x') {
-			$this->swriteln("Installing Let's Encrypt", 'info');
-			$this->swriteln("To active Let's Encrypt run the script /root/add_le.sh after the reboot", 'info');
+//			$this->swriteln("Installing Let's Encrypt", 'info');
+//			$this->swriteln("To active Let's Encrypt run the script /root/add_le.sh after the reboot", 'info');
 			file_put_contents('/root/add_le.sh', 
-"pvenode acme account register default " . $install['email'] . "\n
-pvenode config set --acme domains=" . $install['host'] . "\n
+"#!/bin/bash
+pvenode acme account register default " . $install['email'] . "
+pvenode config set --acme domains=" . $install['host'] . "
 pvenode acme cert order --force\n"
 );
 			system('chown root.root ' . '/root/add_le.sh');
