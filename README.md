@@ -18,11 +18,11 @@ If you just want to generate the network config (even for a different server), s
 When you want to create the network-config, the script use the template-file tpl/network.tpl - you can adjust this file to your needs.
 
 ## Installation
-Boot your server into the Rescue-Mode, use `installimage` and Choose the minimal Debian-Strech or Debian-Buster Version.
+Boot your server into the Rescue-Mode, use `installimage` and Choose the minimal Debian Version.
 
 Set the **HOSTNAME** to a FQDN
 
-If you want to use Thin-Pool, use something lik:
+If you want to use Thin-Pool, use something like:
 ```
 PART lvm pve all
 LV   pve root / ext4 10G
@@ -120,14 +120,14 @@ SSH PremitRootLogin [yes]:
 You you should use the defaults for a Cluster-Setup.
 
 ```
-Email to use with Let's Encrypt and in scripts [admin@local]:
-```
-
-```
 Use Let's Encrypt for the Interface (y,n) [y]:
 ```
 
 Choose **y** if you want a free ssl-cert from Let's Encrypt for the Backend.
+
+```
+Email to use with Let's Encrypt and in scripts [admin@local]:
+```
 
 
 ```
