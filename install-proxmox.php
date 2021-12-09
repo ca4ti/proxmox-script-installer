@@ -138,6 +138,7 @@ if($install['le'] == 'y') {
 }
 if($install['email'] == '') {
 	$inst->swriteln("We will not add Let's Encrypt to the interface without an email-address", 'warn');
+	$install['le'] = 'n';
 }
 
 $inst->swriteln();
