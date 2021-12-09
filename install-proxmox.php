@@ -89,7 +89,7 @@ if($temp == 'y') {
 		$validate = false;
 		do {
 			$inst->api_credentials();
-			$network -> reset_account($robot_account);
+			$network ->reset_account($robot_account);
 			$check = $network->connect();
 			if($check === true) $validate = true;
 		} while (!$validate);
