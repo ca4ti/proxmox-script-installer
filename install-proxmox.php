@@ -40,7 +40,7 @@ $install['nic'] = '';
 $install['ip'] = gethostbyname($install['host']);
 $install['proxmox_vg'] = '';
 $install['proxmox_lv'] = '';
-$install['email'] = 'admin@local';
+$install['email'] = '';
 $install['ssh_port'] = '22';
 $install['ssh_rootlogin'] = 'yes';
 $install['le'] = 'y';
@@ -131,10 +131,12 @@ if($temp == 'y') {
 unset($temp);
 $install['ssh_port'] = $inst->free_query('SSH Port', $install['ssh_port'], 'ssh_port');
 $install['ssh_rootlogin'] = $inst->free_query('SSH PermitRootLogin', 'yes', 'ssh_rootlogin');
-$install['email'] = $inst->free_query("Email to use with Let's Encrypt and in scripts", $install['email'], 'email');
-if($install['email'] != '') {
-	$install['le'] = $inst->simple_query("Use Let's Encrypt for the Interface", array('y','n'), 'y');
-} else {
+
+$install['le'] = $inst->simple_query("Use Let's Encrypt for the Interface", array('y','n'), 'y');
+if($install['le'] == 'y') {
+	$install['email'] = $inst->free_query("Email to use with Let's Encrypt and in scripts", $install['email'], 'email');
+}
+if($install['email'] == '') {
 	$inst->swriteln("We will not add Let's Encrypt to the interface without an email-address", 'warn');
 }
 

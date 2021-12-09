@@ -31,7 +31,7 @@ class installer_proxmox extends installer_base {
 		// update
 		system('apt-get update && apt-get -y dist-upgrade');
 		// packages
-		system('apt-get -y install git htop iotop mc ntp pigz sshfs smartmontools software-properties-common tcpdump vim-nox');
+		system('apt-get -y install git htop iotop mc ntp pigz sshfs smartmontools software-properties-common tcpdump vim-nox socat zip wget');
 		// postfix
 		system("echo postfix postfix/mailname string $install[host] | debconf-set-selections");
 		system("echo postfix postfix/main_mailer_type string '$install[postfix_type]' | debconf-set-selections");
@@ -62,11 +62,22 @@ class installer_proxmox extends installer_base {
 	public function le() {
 		global $install;
 
-		$this->swriteln("Installing Let's Encrypt", 'info');
-		$this->_exec("cd /tmp && wget 'https://github.com/Neilpang/acme.sh/archive/master.zip' && unzip master.zip && rm master.zip && mv acme.sh-master/acme.sh /root");
-		$this->_exec('mkdir -p /root/.le');
-		system('/root/acme.sh --install --accountconf /root/.le/account.conf --accountkey /root/.le/account.key --accountemail '.$install['email']);
-		system('/root/acme.sh --issue --standalone --keypath /etc/pve/local/pveproxy-ssl.key --fullchainpath /etc/pve/local/pveproxy-ssl.pem --reloadcmd "systemctl restart pveproxy" -d '.$install['host']);
+		if($install['proxmox_version'] == '7.x') {
+			$this->swriteln("Installing Let's Encrypt", 'info');
+			$this->swriteln("To active Let's Encrypt run the script /root/add_le.sh after the reboot", 'info');
+			file_put_contents('/root/add_le.sh', 
+"pvenode acme account register default " . $install['email'] . "\n
+pvenode config set --acme domains=" . $install['host'] . "\n
+pvenode acme cert order --force \n";
+			system('chown root.root ' . '/root/add_le.sh');
+			system('chmod 700 ' . '/root/add_le.sh');
+		} else {
+			$this->swriteln("Installing Let's Encrypt", 'info');
+			$this->_exec("cd /tmp && wget 'https://github.com/Neilpang/acme.sh/archive/master.zip' && unzip master.zip && rm master.zip && mv acme.sh-master/acme.sh /root");
+			$this->_exec('mkdir -p /root/.le');
+			system('/root/acme.sh --install --accountconf /root/.le/account.conf --accountkey /root/.le/account.key --accountemail '.$install['email']);
+			system('/root/acme.sh --issue --standalone --keypath /etc/pve/local/pveproxy-ssl.key --fullchainpath /etc/pve/local/pveproxy-ssl.pem --reloadcmd "systemctl restart pveproxy" -d '.$install['host']);
+		}
 	}
 
 }
